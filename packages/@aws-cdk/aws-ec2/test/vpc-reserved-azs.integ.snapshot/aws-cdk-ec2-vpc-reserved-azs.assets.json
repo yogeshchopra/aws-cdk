@@ -1,0 +1,19 @@
+{
+  "version": "21.0.0",
+  "files": {
+    "250dcb938f5b70fc4ef0bac0a3e9fb245e5972d6a8f1de6d8a448c12d453327c": {
+      "source": {
+        "path": "aws-cdk-ec2-vpc-reserved-azs.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "250dcb938f5b70fc4ef0bac0a3e9fb245e5972d6a8f1de6d8a448c12d453327c.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
