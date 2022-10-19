@@ -723,6 +723,111 @@ describe('vpc', () => {
       }).toThrow(/must be a subset of the stack/);
     });
 
+    test('with reserved azs, VPC subnet count should not contain reserved azs subnets', () => {
+      const stack = getTestStack();
+      new Vpc(stack, 'TheVPC', {
+        cidr: '10.0.0.0/16',
+        subnetConfiguration: [
+          {
+            cidrMask: 24,
+            subnetType: SubnetType.PUBLIC,
+            name: 'Public',
+          },
+        ],
+        maxAzs: 3,
+        reservedAzs: 2,
+      });
+      Template.fromStack(stack).resourceCountIs('AWS::EC2::Subnet', 3);
+
+    });
+
+    test('with reserved azs, cidrBlock space should be reserved', () => {
+      const stack = getTestStack();
+      new Vpc(stack, 'TheVPC', {
+        cidr: '10.0.0.0/16',
+        subnetConfiguration: [
+          {
+            cidrMask: 24,
+            name: 'Public',
+            subnetType: SubnetType.PUBLIC,
+          },
+          {
+            cidrMask: 24,
+            name: 'ingress',
+            subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+          },
+        ],
+        maxAzs: 3,
+        reservedAzs: 2,
+      });
+      Template.fromStack(stack).resourceCountIs('AWS::EC2::Subnet', 6);
+      for (let i = 0; i < 3; i++) {
+        Template.fromStack(stack).hasResourceProperties('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i}.0/24`,
+        });
+      }
+      for (let i = 3; i < 5; i++) {
+        const matchingSubnets = Template.fromStack(stack).findResources('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i}.0/24`,
+        });
+        expect(Object.keys(matchingSubnets).length).toBe(0);
+      }
+      for (let i = 5; i < 8; i++) {
+        Template.fromStack(stack).hasResourceProperties('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i}.0/24`,
+        });
+      }
+      for (let i = 8; i < 10; i++) {
+        const matchingSubnets = Template.fromStack(stack).findResources('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i}.0/24`,
+        });
+        expect(Object.keys(matchingSubnets).length).toBe(0);
+      }
+    });
+
+    test('with reserved azs, cidr mask not provided for a subnet', () => {
+      const stack = getTestStack();
+      new Vpc(stack, 'TheVPC', {
+        cidr: '10.0.0.0/16',
+        subnetConfiguration: [
+          {
+            cidrMask: 20,
+            name: 'Public',
+            subnetType: SubnetType.PUBLIC,
+          },
+          {
+            name: 'ingress',
+            subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+          },
+        ],
+        maxAzs: 3,
+        reservedAzs: 1,
+      });
+      Template.fromStack(stack).resourceCountIs('AWS::EC2::Subnet', 6);
+      for (let i = 0; i < 3; i++) {
+        Template.fromStack(stack).hasResourceProperties('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i * 16}.0/20`,
+        });
+      }
+      for (let i = 3; i < 4; i++) {
+        const matchingSubnets = Template.fromStack(stack).findResources('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i * 16}.0/20`,
+        });
+        expect(Object.keys(matchingSubnets).length).toBe(0);
+      }
+      for (let i = 0; i < 3; i++) {
+        Template.fromStack(stack).hasResourceProperties('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i * 32 + 64}.0/19`,
+        });
+      }
+      for (let i = 3; i < 4; i++) {
+        const matchingSubnets = Template.fromStack(stack).findResources('AWS::EC2::Subnet', {
+          CidrBlock: `10.0.${i * 31 + 64}.0/19`,
+        });
+        expect(Object.keys(matchingSubnets).length).toBe(0);
+      }
+    });
+
     test('with natGateway set to 1', () => {
       const stack = getTestStack();
       new Vpc(stack, 'VPC', {

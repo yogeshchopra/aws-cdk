@@ -878,6 +878,16 @@ export interface VpcProps {
   readonly maxAzs?: number;
 
   /**
+   * Define the number of AZs to reserve.
+   *
+   * When specified, the IP space is reserved for the azs but no actual
+   * resources are provisioned.
+   *
+   * @default 0
+   */
+  readonly reservedAzs?: number;
+
+  /**
    * Availability zones this VPC spans.
    *
    * Specify this option only if you do not specify `maxAzs`.
@@ -1275,6 +1285,10 @@ export class Vpc extends VpcBase {
   public readonly isolatedSubnets: ISubnet[] = [];
 
   /**
+   * Number of azs to reserve.
+   */
+  public readonly reservedAzs: number;
+  /**
    * AZs for this VPC
    */
   public readonly availabilityZones: string[];
@@ -1361,6 +1375,8 @@ export class Vpc extends VpcBase {
     this.vpcIpv6CidrBlocks = this.resource.attrIpv6CidrBlocks;
 
     Tags.of(this).add(NAME_TAG, props.vpcName || this.node.path);
+
+    this.reservedAzs = props.reservedAzs ?? 0;
 
     if (props.availabilityZones) {
       // If given AZs and stack AZs are both resolved, then validate their compatibility.
@@ -1518,7 +1534,7 @@ export class Vpc extends VpcBase {
       this.createSubnetResources(subnet, subnet.cidrMask);
     }
 
-    const totalRemaining = remainingSpaceSubnets.length * this.availabilityZones.length;
+    const totalRemaining = remainingSpaceSubnets.length * (this.availabilityZones.length + this.reservedAzs);
     const cidrMaskForRemaining = this.networkBuilder.maskForRemainingSubnets(totalRemaining);
     for (const subnet of remainingSpaceSubnets) {
       this.createSubnetResources(subnet, cidrMaskForRemaining);
@@ -1581,6 +1597,11 @@ export class Vpc extends VpcBase {
       Tags.of(subnet).add(SUBNETNAME_TAG, subnetConfig.name, { includeResourceTypes });
       Tags.of(subnet).add(SUBNETTYPE_TAG, subnetTypeTagValue(subnetConfig.subnetType), { includeResourceTypes });
     });
+
+    // For reserved azs, just allocate ip space but do not create any resources.
+    for (let i = 0; i < this.reservedAzs; i++) {
+      this.networkBuilder.addSubnet(cidrMask);
+    }
   }
 }
 

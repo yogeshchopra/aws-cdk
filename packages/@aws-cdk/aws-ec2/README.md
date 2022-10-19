@@ -114,6 +114,31 @@ class MyStack extends Stack {
 
 Note that overriding the `get availabilityZones()` method will override the default behavior for all constructs defined within the Stack.
 
+### Reserving availability zones
+
+There are situations where the IP space for availability zones will
+need to be reserved. This is useful in situations where availability
+zones would need to be added after the vpc is originally deployed,
+without causing IP renumbering for availability zones subnets. The IP
+space for reserving n availability zones can be done by setting the
+`reservedAzs` to n in vpc props, as shown below:
+
+```ts
+const vpc = new ec2.Vpc(this, 'TheVPC', {
+  cidr: '10.0.0.0/21',
+  maxAzs: 3,
+  reservedAzs: 1,
+});
+```
+
+In the example above, the subnets for reserved availability zones is not
+actually provisioned but its IP space is still reserved. If in the future
+new availability zones needs to be provisioned, then we would decrement
+the value of `reservedAzs` and increment the `maxAzs` or `availabilityZones`
+accordingly. This action would not cause the IP address of subnets to get
+renumbered, but rather the IP space that was previously reserved will be
+used for the new availability zones subnets.
+
 ### Choosing subnets for resources
 
 When creating resources that create Elastic Network Interfaces (such as
